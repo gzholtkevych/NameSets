@@ -1,2 +1,7 @@
 # Label
-Theory of types that are used for labelling atomic entities
+
+This repository contains a Coq-library providing the definition and properties of types used for referring to atomic entities.
+
+The library is under development.
+
+Authors: G. Zholtkevych and A. Zozulia
