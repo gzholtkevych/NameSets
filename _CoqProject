@@ -1,0 +1,4 @@
+-R . Label
+-arg -w
+-arg all
+

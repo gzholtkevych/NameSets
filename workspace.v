@@ -48,5 +48,20 @@ Context `{label : Label A}.
       + right. now apply IHc'.
   Qed.
 
+  (* Removing duplicated members of a chain *)
+  Fixpoint nodup (c : chain) : chain :=
+    match c with
+      []      => []
+    | a :: c' => if In_dec a c' then nodup c' else a :: (nodup c')
+    end.
+
+  (**)
+  Lemma nodup_without_dup : ∀ a c, In a c → occn a (nodup c) = 1.
+  Admitted.
+  
+  (**)
+  Lemma nodup_member : ∀ a c, ¬ In a c → occn a (nodup c) = 0.
+  Admitted.
+
 
 End Facts.
