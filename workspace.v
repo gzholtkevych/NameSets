@@ -67,14 +67,16 @@ Let chain := list A.
 
   (**)
   Lemma nodup_without_dup : ∀ a c, In a c → occn a (nodup c) = 1.
-    intros until c. revert a.
-    induction c as [| a' c' IHc']; intros.
+  Proof.
+    intros.
+    induction c as [| a' c' IHc'].
     - contradiction.
-    - simpl. destruct (In_dec a' c') as [InH | InN].
+    - simpl. destruct In_dec as [InH | InN].
       + apply IHc'. elim H; intro H1; try assumption ||
         (try now rewrite H1 in InH).
-      + elim H; intro H1.
-        * simpl.
+      + simpl in H |-*. destruct (lblEq_dec a' a) as [Ea'a | Na'a].
+        * destruct nodup. reflexivity. elim H. intro. rewrite H0. simpl. admit.
+        * apply IHc'. elim H; intro H2; [ contradiction | assumption ].
   Admitted.
   
   (**)

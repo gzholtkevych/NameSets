@@ -1,5 +1,6 @@
--R . Label
+-R . NatFinSubsets
 -arg -w
 -arg all
+Prelude.v
 Defrinitions.v
 
