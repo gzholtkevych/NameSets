@@ -6,7 +6,7 @@
    Therefore, natural numbers are used as names in the library.
    -------------------------------------------------------------------------- *)
 
-Require Import Utf8.
+Require Export Utf8.
 Require Import Lists.List.
 Require Import Arith.Compare_dec.
 Require Import Arith.PeanoNat.
