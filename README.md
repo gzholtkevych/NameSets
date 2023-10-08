@@ -1,7 +1,7 @@
-# Label
+<H1>Sets of Names</H1>
 
-This repository contains a Coq-library providing the definition and properties of types used for referring to atomic entities.
-
-The library is under development.
+This library contains definitions, properties, and certificates for the naming of entities.
+We assume that there is an enumerable set of names and a computable method for distinguishing two different names.
+Therefore, natural numbers are used as names in the library.
 
 Authors: G. Zholtkevych and A. Zozulia
