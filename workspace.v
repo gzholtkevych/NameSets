@@ -1,6 +1,7 @@
 Require Import Utf8.
 Require Import Lists.List.
 Import ListNotations.
+Require Import Arith.PeanoNat.
 
 
 Class Label (A : Set) := {
@@ -48,6 +49,17 @@ Context `{label : Label A}.
       + right. now apply IHc'.
   Qed.
 
+  Lemma xx : ∀ a c, ¬ In a c ↔ occn a c = 0.
+  Proof.
+    intros. split; intro.
+    - destruct c as [| a' c'].
+      + reflexivity.
+      + simpl. destruct (label_eqDec a' a) as [EH | NH]; simpl in H.
+        * rewrite EH in H. contradict H. now left.
+        * assert (H1 : ¬ In a c'). { intro. apply H. now right. }
+          assert (occn a c' ≠ 0). { apply In_occn. contradict H1.
+
+
   (* Removing duplicated members of a chain *)
   Fixpoint nodup (c : chain) : chain :=
     match c with
@@ -57,6 +69,19 @@ Context `{label : Label A}.
 
   (**)
   Lemma nodup_without_dup : ∀ a c, In a c → occn a (nodup c) = 1.
+  Proof.
+    intros until c. revert a.
+    induction c as [| a' c' IHc']; intros.
+    - contradiction.
+    - simpl. destruct (In_dec a' c') as [HIn | HNIn].
+      + apply IHc'. destruct (label_eqDec a' a) as [EH | NH].
+        * now rewrite <- EH.
+        * simpl in H. elim H; intro H1; [ contradiction | assumption ].
+      + simpl. destruct (label_eqDec a' a) as [EH | NH].
+        * simpl in H. rewrite EH in HNIn.
+          assert (E : occn a c' = 0). {
+            apply In_occn.
+          }
   Admitted.
   
   (**)
