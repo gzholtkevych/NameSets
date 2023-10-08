@@ -1,0 +1,35 @@
+Require Import NameSets.Definitions.
+Require Import Coq.Arith.PeanoNat.
+Require Import Coq.Arith.Compare_dec.
+
+Theorem Name_is_enumerable :
+  (∀ n : Name, name (name_id n) = n) ∧
+  (∀ n : nat, name_id (name n) = n).
+Proof. split; intro; now destruct n. Qed.
+
+Definition name_eq_dec : ∀ n1 n2 : Name, {n1 = n2} + {n1 ≠ n2}.
+Proof.
+  intros.
+  destruct n1 as [idn1], n2 as [idn2].
+  destruct (Nat.eq_dec idn1 idn2) as [E | Ne].
+  - left. now rewrite E.
+  - right. intro. apply Ne. injection H. now intro.
+Defined.
+
+Definition nameset_dec : ∀ ns, {increasing ns} + {¬ increasing ns}.
+Proof.
+  intro.
+  destruct ns as [| n ns'].
+  - left. constructor.
+  - revert n. induction ns' as [| n' ns'' IHns'']; intro.
+    + left. constructor.
+    + destruct (lt_eq_lt_dec (name_id n) (name_id n')) as [Le | Gt];
+      try destruct Le as [Lt | Eq];
+      destruct (IHns'' n') as [H1 | H2]; 
+      try (left; now constructor);
+      right; intro; inversion_clear H; 
+      try contradiction.
+      * rewrite Eq in H0. now apply (Nat.lt_irrefl (name_id n')).
+      * apply (Nat.lt_irrefl (name_id n')).
+        now apply Nat.lt_trans with (name_id n).
+Defined.

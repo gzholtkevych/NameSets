@@ -4,74 +4,49 @@
    We assume that there is an enumerable set of names and a computable method 
    for distinguishing two different names.
    Therefore, natural numbers are used as names in the library.
-   -------------------------------------------------------------------------- *)
+----------------------------------------------------------------------------- *)
 
-Require Export Utf8.
+(* =============================================================================
+   Used Libraries
+============================================================================= *)
+Require Import Utf8.
 Require Import Lists.List.
 Require Import Arith.Compare_dec.
 Require Import Arith.PeanoNat.
 Import ListNotations.
-
-Inductive atom : Set := a : nat → atom.
-Definition aid : atom → nat :=
-(* the function returns identifier of its argument -------------------------- *)
-  fun n => let 'a idn := n in idn.
-  
-Lemma aid_inj : ∀ n m, aid n = aid m → n = m.
-Proof.
-  intros. destruct n as [idn], m as [idm]. simpl in H. now rewrite H.
-Qed.
-
-Lemma aid_surj : ∀ n, ∃ idn, n = a idn.
-Proof.
-  intro. destruct n as [idn]. now exists idn.
-Qed.
-
-(* -----------------------------------------------------------------------------
-   The predicate for recognising lists of atoms has been sorted by
-   increasing their identifiers. 
-   -------------------------------------------------------------------------- *)
-Inductive increasing : list atom → Prop :=
-  | inc0 : increasing []
-  | inc1 : ∀ n, increasing [n]
-  | incS : ∀ n m ns,
-      aid n < aid m → increasing (m :: ns) → increasing (n :: m :: ns).
-
-Definition increasing_dec :
-(* the predicate is decidable ----------------------------------------------- *)
-  ∀ lst : list atom, {increasing lst} + {¬ increasing lst}.
-Proof.
-  intro.
-  destruct lst as [| n lst'].
-  - left. constructor.
-  - revert n. induction lst' as [| m lst'' IHlst'']; intro.
-    + left. constructor.
-    + destruct (lt_eq_lt_dec (aid n) (aid m)) as [Hle | Hgt];
-      try destruct Hle as [Hlt | Heq].
-      * { elim (IHlst'' m); intro H.
-        - left. now constructor.
-        - right. intro H1. apply H. now inversion_clear H1. }
-      * right. intro H. inversion_clear H. rewrite Heq in H0.
-        now apply Nat.lt_irrefl with (aid m).
-      * right. intro H. inversion_clear H.
-        apply Nat.lt_irrefl with (aid m). now apply Nat.lt_trans with (aid n).
-Defined.
+Require Import Atoms.Definitions.
+Require Import Atoms.IncreasingNatLists.
 (* ========================================================================== *)
 
-(* -----------------------------------------------------------------------------
-   The type 'AtomSet' is used for modelling finite subsets of names,
-   with the coercion 'toList' ensuring to operate with inhabitants of 
-   this type as with lists. 
-   -------------------------------------------------------------------------- *)
-Definition AtomSet : Set := {lst : list atom | increasing lst}.
-Coercion toList := fun ns : AtomSet => proj1_sig ns.
+(* Atom facts --------------------------------------------------------------- *)
+Lemma atom_nat : ∀ n m, aid n = aid m ↔ n = m.
+  (* The set of atoms and set of natural numbers are equipower -------------- *)
+Proof.
+  intros. destruct n as [idn], m as [idm]. simpl.
+  split; intro.
+  - now rewrite H.
+  - injection H. intro. trivial.
+Qed.
+
+Definition atom_eq_dec : ∀ n m : atom, {n = m} + {n ≠ m}.
+  (* The equality predicate on atoms is decidable --------------------------- *)
+Proof.
+  intros. destruct n as [idn], m as [idm].
+  destruct (Nat.eq_dec idn idm) as [H | H].
+  - left. now rewrite H.
+  - right. intro H'.
+    assert (H'' : idn = idm). { injection H'. intro. trivial. }
+    contradiction.
+Defined.
 (* -------------------------------------------------------------------------- *)
 
+(* -----------------------------------------------------------------------------
+   The operation for injecting an atom into an atom set.
+----------------------------------------------------------------------------- *)
 Fixpoint aux_inject (n : atom) (lst : list atom) : list atom :=
-(* the auxiliary function for injecting a natural number 'n' into a list of
-   natural numbers 'lst' before the first member of the list that is greater 
-   than 'n'.
-   -------------------------------------------------------------------------- *)
+  (* the auxiliary function for injecting a natural number 'n' into a list of
+     natural numbers 'lst' before the first member of the list that is greater 
+     than 'n'. -------------------------------------------------------------- *)
     match lst with
     | []        => [n]
     | m :: lst' => match (lt_eq_lt_dec (aid n) (aid m)) with
@@ -84,8 +59,7 @@ Fixpoint aux_inject (n : atom) (lst : list atom) : list atom :=
     end.
 
 Definition inject (n : atom) (ns : AtomSet) : AtomSet.
-(* the function injects an atom 'n' into a finite set of atoms 'ns'.
-   -------------------------------------------------------------------------- *)
+(* the function injects an atom 'n' into a finite set of atoms 'ns'.--------- *)
 Proof.
   destruct ns as (lst, H). pose (aux_inject n lst) as nlst.
   exists nlst. subst nlst.
@@ -108,6 +82,7 @@ Proof.
 Defined.
 
 Lemma post_inject : ∀ n ns, In n (inject n ns).
+(* an atom is in an atom set after injecting this atom into the atom set ---- *)
 Proof.
   intros. revert n.
   destruct ns as (lst, H).
@@ -117,7 +92,7 @@ Proof.
     destruct (lt_eq_lt_dec (aid n) (aid m)) as [Hle | Hgt];
     try destruct Hle as [Hlt | Heq].
     + now left.
-    + left. now apply aid_inj.
+    + left. now apply atom_nat.
     + right.
       assert (increasing lst'). { 
         inversion_clear H; [ constructor | assumption ]. }
@@ -125,6 +100,8 @@ Proof.
 Qed.
 
 Lemma post_inject_discr : ∀ n m ns, In m (inject n ns) → m = n ∨ In m ns.
+(* if an atom m is in the atom set obtained by injecting an atom n into
+   an atom set ns, then n and m are equal, or  n is in atom set ns ---------- *)
 Proof.
   intros until ns. revert m n.
   destruct ns as (lst, H).
@@ -146,14 +123,27 @@ Proof.
       * right. now left.
       * elim (IH m n H0); intro; [ now left | right ]; now right.
 Qed.
+(* -------------------------------------------------------------------------- *)
+
+(* -----------------------------------------------------------------------------
+   Constructing the atom set formed by atoms with identifiers
+   base, ..., base + len
+----------------------------------------------------------------------------- *)
 
 Fixpoint aux_segment (base len : nat) {struct len} : list atom :=
-(* the function generates the list [base; ..., base + len - 1].
-   -------------------------------------------------------------------------- *)
+  (* the function generates the list [base; ..., base + len - 1]. ----------- *)
   match len with
   | 0      => []
   | S len' => (a base) :: aux_segment (S base) len'
   end.
+
+Fixpoint segment (base len : nat) : AtomSet :=
+  match len with
+  | 0      => emptyAtomSet
+  | S len' => inject (a base) (segment (S base) len')
+  end.
+
+(*
 
 Lemma aux_segment_inc : ∀ base len, increasing (aux_segment base len).
 (* the list [base; ..., base + len - 1] is increasing.
@@ -178,7 +168,7 @@ Definition segment (base len : nat) : AtomSet.
 Proof.
   exists (aux_segment base len).
   apply aux_segment_inc.
-Defined.
+Defined. *)
 
 (* The certificate of 'segment'
      In n (segment base len) ↔ base ≤ n ∧ n < base + len
@@ -189,6 +179,34 @@ Proof.
   - trivial.
   - simpl. now rewrite IHn'.
 Qed.
+
+Lemma segment_inject :
+  ∀ base len, segment base (S len) = inject (a base) (segment (S base) len).
+Proof.
+  intros. revert base.
+  destruct len as [| len']; intros; destruct base; reflexivity.
+Qed.
+
+Lemma in_segment : ∀ base len n,
+  In n (segment base len) → base ≤ (aid n) ∧ (aid n) < base + len.
+Proof.
+  intros.
+  destruct len as [| len']; intros.
+  - inversion H.
+  - revert base n H.
+    induction len' as [| len'' IHlen'']; intros.
+    + elim H; intro H1; split.
+      * rewrite <- H1. constructor.
+      * rewrite <- H1. rewrite plus_n_1. constructor.
+      * inversion H1.
+      * inversion H1.
+    + split.
+      * simpl in H.
+        pose (post_inject_discr (a base) n).
+        rewrite <- (segment_inject (S base) len'') in H.
+        apply IHlen''. simpl in H.
+        pose (IH := IHlen'' ).
+  
 
 Lemma lt_n_plus_n_Sm : ∀ n m : nat, n < n + S m.
 Proof.
