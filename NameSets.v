@@ -13,6 +13,41 @@ Require Import Arith.PeanoNat.
 Import ListNotations.
 
 
+Module Type NAME.
+  Parameter name : Set.
+  Parameter id : name → nat.
+
+  Axiom id_inj : ∀ x y : name, id x = id y → x = y.
+  Axiom id_surj : ∀ n : nat, ∃ x : name, id x = n.
+  Parameter eq_dec : ∀ x y : name, {x = y} + {x ≠ y}.
+End NAME.
+
+Module nat_as_NAME : NAME with Definition name := nat.
+  Definition name := nat.
+  Definition id := fun x : name => x.
+
+  Lemma id_inj : ∀ x y : name, id x = id y → x = y.
+  Proof. intros. assumption. Qed.
+
+  Lemma id_surj : ∀ n : nat, ∃ x : name, id x = n.
+  Proof. intro. now exists n. Qed.
+
+  Definition eq_dec : ∀ x y : name, {x = y} + {x ≠ y}.
+  Proof.
+    intros. destruct (Nat.eq_dec x y) as [HEq | HNeq];
+    [ now left | now right ].
+  Defined.
+End nat_as_NAME. 
+
+Module NameSet (M : NAME).
+  Import M.
+
+  Check name.
+End NameSet.
+
+
+
+
 (* -----------------------------------------------------------------------------
    The predicate for recognising lists of natural numbers has been sorted by
    increasing. 
