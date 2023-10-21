@@ -1,4 +1,8 @@
-(* =============================================================================
+(* -----------------------------------------------------------------------------
+   The definitions for names and finite sets of names are here.
+   We assume that there is an enumerable set of names and a computable method 
+   for distinguishing two different names.
+================================================================================
    Used Libraries
 ============================================================================= *)
 Require Export Utf8.

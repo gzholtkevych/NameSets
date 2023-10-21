@@ -1,12 +1,6 @@
 (* -----------------------------------------------------------------------------
-   This library contains definitions, properties, and certificates for
-   atomic entities.
-   We assume that there is an enumerable set of names and a computable method 
-   for distinguishing two different names.
-   Therefore, natural numbers are used as names in the library.
------------------------------------------------------------------------------ *)
-
-(* =============================================================================
+   Properties, and certificates for names and finite sets of names are here.
+================================================================================
    Used Libraries
 ============================================================================= *)
 Require Import Utf8.
@@ -14,13 +8,14 @@ Require Import Lists.List.
 Require Import Arith.Compare_dec.
 Require Import Arith.PeanoNat.
 Import ListNotations.
-Require Import Atoms.Definitions.
-Require Import Atoms.IncreasingNatLists.
-(* ========================================================================== *)
+Require Import NameSets.Definitions.
+Require Import NameSets.IncreasingNameLists.
+(* =============================================================================
 
-(* Atom facts --------------------------------------------------------------- *)
-Lemma atom_nat : ∀ n m, aid n = aid m ↔ n = m.
-  (* The set of atoms and set of natural numbers are equipower -------------- *)
+                                  Name Facts
+----------------------------------------------------------------------------- *)
+Lemma name_nat : ∀ n m, name_id n = name_id m ↔ n = m.
+(* The set of atoms and set of natural numbers are equipower ---------------- *)
 Proof.
   intros. destruct n as [idn], m as [idm]. simpl.
   split; intro.
@@ -28,8 +23,8 @@ Proof.
   - injection H. intro. trivial.
 Qed.
 
-Definition atom_eq_dec : ∀ n m : atom, {n = m} + {n ≠ m}.
-  (* The equality predicate on atoms is decidable --------------------------- *)
+Definition name_eq_dec : (* The Leibnitz's equality on atoms is decidable --- *)
+  ∀ n m : Name, {n = m} + {n ≠ m}.
 Proof.
   intros. destruct n as [idn], m as [idm].
   destruct (Nat.eq_dec idn idm) as [H | H].
@@ -38,18 +33,17 @@ Proof.
     assert (H'' : idn = idm). { injection H'. intro. trivial. }
     contradiction.
 Defined.
-(* -------------------------------------------------------------------------- *)
-
 (* -----------------------------------------------------------------------------
-   The operation for injecting an atom into an atom set.
+
+           The Operation for Injecting a Name into a Name Set
 ----------------------------------------------------------------------------- *)
-Fixpoint aux_inject (n : atom) (lst : list atom) : list atom :=
+Fixpoint aux_inject (n : Name) (lst : list Name) : list Name :=
   (* the auxiliary function for injecting a natural number 'n' into a list of
      natural numbers 'lst' before the first member of the list that is greater 
-     than 'n'. -------------------------------------------------------------- *)
+     than 'n' --------------------------------------------------------------- *)
     match lst with
     | []        => [n]
-    | m :: lst' => match (lt_eq_lt_dec (aid n) (aid m)) with
+    | m :: lst' => match (lt_eq_lt_dec (name_id n) (name_id m)) with
         | inleft Hle => match Hle with
             | left _  => n :: m :: lst'
             | right _ => m :: lst'
@@ -58,21 +52,21 @@ Fixpoint aux_inject (n : atom) (lst : list atom) : list atom :=
         end
     end.
 
-Definition inject (n : atom) (ns : AtomSet) : AtomSet.
-(* the function injects an atom 'n' into a finite set of atoms 'ns'.--------- *)
+Definition inject (n : Name) (ns : NameSet) : NameSet.
+(* the function injects a name 'n' into a finite set of names 'ns' ---------- *)
 Proof.
   destruct ns as (lst, H). pose (aux_inject n lst) as nlst.
   exists nlst. subst nlst.
   destruct lst as [| m lst'].
   - constructor.
-  - simpl. destruct (lt_eq_lt_dec (aid n) (aid m)) as [Hle | Hgt];
+  - simpl. destruct (lt_eq_lt_dec (name_id n) (name_id m)) as [Hle | Hgt];
     try destruct Hle as [Hlt | Heq].
     + now constructor.
     + assumption.
     + revert n m H Hgt. induction lst' as [| k lst'' IHlst''].
       * constructor; [assumption | constructor].
       * intros. {
-        simpl. destruct (lt_eq_lt_dec (aid n) (aid k)) as [Hle | Hgt'];
+        simpl. destruct (lt_eq_lt_dec (name_id n) (name_id k)) as [Hle | Hgt'];
         try destruct Hle as [Hlt | Heq].
         - constructor; [ assumption | constructor ]; try assumption.
           now inversion_clear H.
@@ -82,17 +76,17 @@ Proof.
 Defined.
 
 Lemma post_inject : ∀ n ns, In n (inject n ns).
-(* an atom is in an atom set after injecting this atom into the atom set ---- *)
+(* a name is in a name set after injecting this name into the name set ------ *)
 Proof.
   intros. revert n.
   destruct ns as (lst, H).
   induction lst as [| m lst' IHlst']; intro.
   - now left.
   - simpl.
-    destruct (lt_eq_lt_dec (aid n) (aid m)) as [Hle | Hgt];
+    destruct (lt_eq_lt_dec (name_id n) (name_id m)) as [Hle | Hgt];
     try destruct Hle as [Hlt | Heq].
     + now left.
-    + left. now apply atom_nat.
+    + left. now apply name_nat.
     + right.
       assert (increasing lst'). { 
         inversion_clear H; [ constructor | assumption ]. }
@@ -100,8 +94,8 @@ Proof.
 Qed.
 
 Lemma post_inject_discr : ∀ n m ns, In m (inject n ns) → m = n ∨ In m ns.
-(* if an atom m is in the atom set obtained by injecting an atom n into
-   an atom set ns, then n and m are equal, or  n is in atom set ns ---------- *)
+(* if a name 'm' is in the name set obtained by injecting 'n' into a name
+   set 'ns', then 'n' and 'm' are equal, or 'n' is in 'ns' ------------------ *)
 Proof.
   intros until ns. revert m n.
   destruct ns as (lst, H).
@@ -111,12 +105,12 @@ Proof.
     assert (H2 : increasing lst'). { 
       inversion_clear H; [ constructor | assumption ]. }
     simpl in IHlst'. pose (IH := IHlst' H2).
-    destruct (lt_eq_lt_dec (aid n) (aid k)) as [Hle | Hgt];
+    destruct (lt_eq_lt_dec (name_id n) (name_id k)) as [Hle | Hgt];
     try destruct Hle as [Hlt | Heq].
     + elim H1; intro H3.
       * left. now symmetry.
       * destruct H3 as [HL | HR]; right; [ now left | now right ].
-    + destruct (lt_eq_lt_dec (aid k) (aid m)) as [Hle | Hgt];
+    + destruct (lt_eq_lt_dec (name_id k) (name_id m)) as [Hle | Hgt];
       try destruct Hle as [Hlt | Heq'];
       try (right; inversion_clear H1; [ now left | now right ]).
     + inversion_clear H1.
@@ -130,49 +124,19 @@ Qed.
    base, ..., base + len
 ----------------------------------------------------------------------------- *)
 
-Fixpoint aux_segment (base len : nat) {struct len} : list atom :=
-  (* the function generates the list [base; ..., base + len - 1]. ----------- *)
+Fixpoint aux_segment (base len : nat) {struct len} : list Name :=
+  (* the function generates the list [name base; ..., name (base + len - 1)]  *)
   match len with
   | 0      => []
-  | S len' => (a base) :: aux_segment (S base) len'
+  | S len' => (name base) :: aux_segment (S base) len'
   end.
 
-Fixpoint segment (base len : nat) : AtomSet :=
+Fixpoint segment (base len : nat) : NameSet :=
   match len with
-  | 0      => emptyAtomSet
-  | S len' => inject (a base) (segment (S base) len')
+  | 0      => noName
+  | S len' => inject (name base) (segment (S base) len')
   end.
 
-(*
-
-Lemma aux_segment_inc : ∀ base len, increasing (aux_segment base len).
-(* the list [base; ..., base + len - 1] is increasing.
-   -------------------------------------------------------------------------- *)
-Proof.
-  intros. revert base.
-  induction len as [| len' IHlen']; intro.
-  - constructor.
-  - simpl. destruct len' as [| len''].
-    + constructor.
-    + assert (increasing (aux_segment (S base) (S len''))). {
-        pose (IHlen' (S base)). assumption. }
-      assert (base < S base). { constructor. }
-      simpl. constructor.
-      * assumption.
-      * simpl in H. assumption.
-Qed.
-
-Definition segment (base len : nat) : AtomSet.
-(* the function returns the name set {base; ...; base + len - 1}.
-   -------------------------------------------------------------------------- *)
-Proof.
-  exists (aux_segment base len).
-  apply aux_segment_inc.
-Defined. *)
-
-(* The certificate of 'segment'
-     In n (segment base len) ↔ base ≤ n ∧ n < base + len
-   -------------------------------------------------------------------------- *)
 Lemma plus_n_1 : ∀ n : nat, n + 1 = S n.
 Proof.
   induction n as [| n' IHn'].
@@ -180,8 +144,10 @@ Proof.
   - simpl. now rewrite IHn'.
 Qed.
 
-Lemma segment_inject :
-  ∀ base len, segment base (S len) = inject (a base) (segment (S base) len).
+Lemma segment_inject : (* the segment with name_ids in
+  ['base'; ...; base + len - 1] can be obtained by injecting name base
+  into the segment with name_ids in [base + 1; ...; base + len - 1] --------- *)
+  ∀ base len, segment base (S len) = inject (name base) (segment (S base) len).
 Proof.
   intros. revert base.
   destruct len as [| len']; intros; destruct base; reflexivity.
