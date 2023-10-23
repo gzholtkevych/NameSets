@@ -139,21 +139,21 @@ Module Names (M : NAME) <: NAME with Definition name := M.name.
 
   Lemma inject_discr : ∀ n m ns, In m (inject n ns) → n = m \/ In m ns.
   Proof.
-    intros. revert n m H.
+    intros.
+    destruct (eq_dec n m) as [Heq | HNeq].
+    - now left.
+    - right. revert n m HNeq H. induction inject. simpl in H.
     destruct ns as [lst H]. simpl.
-    induction lst as [| k lst' IHlst']; intros.
+    induction lst as [| k lst' IHlst']; intros; simpl in H0.
     - elim H0; intro; [now left | contradiction].
-    - destruct (eq_dec n m) as [H1 | H1].
-      + now left.
-      + right. destruct (eq_dec m k)  as [H2 | H2].
-        * now left.
-        * right. {
-          assert (increasing lst'). { 
-            inversion_clear H; [constructor | assumption]. }
-          pose (Hlst' := IHlst' H3). simpl in H0.
-          destruct (lt_eq_lt_dec (M.id n) (M.id k)) as [Hle | Hgt];
-          try destruct Hle as [Hlt | Heq].
-          - 
+    - destruct (lt_eq_lt_dec (M.id n) (M.id k)) as [Hle | Hgt];
+      try destruct Hle as [Hlt | Heq]; simpl in H0 |-*.
+      + assumption.
+      + now right.
+      + right. apply IHlst'.
+        * inversion_clear H; [constructor | assumption].
+        * { elim H0; intro.
+          - rewrite H1. pose (post_inject.
 
   Definition declare (lst : list name) : NameSet.
   Proof.
