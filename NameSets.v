@@ -143,21 +143,22 @@ Module Names (M : NAME) <: NAME with Definition name := M.name.
     destruct ns as [lst H]. simpl.
     induction lst as [| k lst' IHlst']; intros.
     - elim H0; intro; [now left | contradiction].
-    - destruct (eq_dec n m) as [H1 | H1].
-      + now left.
-      + right. destruct (eq_dec m k)  as [H2 | H2].
-        * now left.
-        * right. {
-          assert (increasing lst'). { 
-            inversion_clear H; [constructor | assumption]. }
-          pose (Hlst' := IHlst' H3). simpl in H0.
-          destruct (lt_eq_lt_dec (M.id n) (M.id k)) as [Hle | Hgt];
-          try destruct Hle as [Hlt | Heq].
-          - 
-
+    - simpl in H0. destruct (lt_eq_lt_dec (M.id n) (M.id k)) as [Hle | HGt];
+      try destruct Hle as [Hlt | Heq].
+      + inversion_clear H0; [now left | now right].
+      + now right.
+      + inversion_clear H0.
+        * right. now left.
+        * simpl. right. { apply IHlst'.
+          - inversion_clear H; [constructor | assumption].
+          - destruct (lt_eq_lt_dec (M.id m) (M.id k)) as [Hle | Hgt];
+            try destruct Hle as [Hlt | Heq].
+            + exfalso. now apply Nat.lt_irrefl with (M.id k).
+          + 
   Definition declare (lst : list name) : NameSet.
   Proof.
     induction lst as [| n lst' ns'].
+      
     - exact nothing.
     - exact (inject n ns').
   Defined.
