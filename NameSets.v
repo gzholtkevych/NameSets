@@ -154,6 +154,22 @@ Module Names (M : NAME) <: NAME with Definition name := M.name.
           [ inversion_clear Hinc; [try now constructor | assumption]
           | assumption].
   Qed.
+  
+  Lemma inject_inv : ∀ n m (ns : NameSet), In n ns → In n (inject m ns).
+  Proof.
+    intros. destruct ns as (lst, Hinc).
+    simpl in H |-*. revert n m H.
+    induction lst as [| k lst' IHlst']; intros.
+    - now left.
+    - simpl. destruct (lt_eq_lt_dec (M.id m) (M.id k)) as [Hle | Hgt];
+      try destruct Hle as [Hlt | Heq].
+      + now right.
+      + assumption.
+      + elim H; intro.
+        * now left.
+        * right. apply IHlst'. 
+          inversion_clear Hinc; [constructor | assumption]. assumption.
+  Qed.
 
   Fixpoint declare (lst : list name) : NameSet :=
     match lst with
@@ -163,19 +179,25 @@ Module Names (M : NAME) <: NAME with Definition name := M.name.
 
   Lemma post_declare : ∀ lst n, In n (declare lst) ↔ In n lst.
   Proof.
-    intro.
-    induction lst as [| m lst' IHlst']; intro; split; intro;
-    try contradiction.
-    - simpl in H |-*. destruct (eq_dec m n).
-      + now left.
-      + right. apply IHlst'. destruct lst' as [| k lst''].
-        * simpl in H. destruct H as [H1 | H1]; contradiction.
-        * apply IHlst'. { destruct (eq_dec n k) as [H1 | H1].
-          - now left.
-          - apply IHlst'. simpl.
+    intros. split; intro.
+    - induction lst as [| m lst' IHlst'].
+      + contradiction.
+      + simpl in H.
+        destruct (eq_dec m n) as [H1 | H1].
+        * now left.
+        * right. apply IHlst'.
+          pose (H2 := inject_discr m n (declare lst') H).
+          elim H2; intro; [contradiction | assumption].
+    - revert n H. induction lst as [| m lst' IHlst']; intros.
+      + contradiction.
+      + elim H; intro H1.
+        * rewrite H1. apply post_inject.
+        * simpl. destruct (eq_dec n m) as [Heq | Hneq];
+          [ rewrite Heq; apply post_inject
+          | apply inject_inv; now apply IHlst' ].
+  Qed.
 
 End Names.
-
 
 Inductive var := v : nat → var.
 Module Var <: NAME with Definition name := var.
@@ -199,108 +221,3 @@ End Var.
 
 Module varScopes := Names(Var).
 
-
-
-Fixpoint aux_segment (base len : nat) {struct len} : list nat :=
-(* the function generates the list [base; ..., base + len - 1].
-   -------------------------------------------------------------------------- *)
-  match len with
-  | 0      => []
-  | S len' => base :: aux_segment (S base) len'
-  end.
-
-Lemma aux_segment0 : ∀ n, aux_segment n 0 = [].
-Proof. reflexivity. Qed.
-
-Lemma aux_segment_inc : ∀ base len, increasing (aux_segment base len).
-(* the list [base; ..., base + len - 1] is increasing.
-   -------------------------------------------------------------------------- *)
-Proof.
-  intros. revert base.
-  induction len as [| len' IHlen'].
-  - constructor.
-  - simpl. destruct len' as [| len''].
-    + constructor.
-    + intro.
-      assert (increasing (aux_segment (S base) (S len''))). {
-       pose (IHlen' (S base)). assumption. }
-      assert (base < S base). { constructor. }
-      simpl. constructor.
-      * assumption.
-      * simpl in H. assumption.
-Qed.
-
-Definition segment (base len : nat) : NameSet.
-(* the function returns the name set {base; ...; base + len - 1}.
-   -------------------------------------------------------------------------- *)
-Proof.
-  exists (aux_segment base len).
-  apply aux_segment_inc.
-Defined.
-
-(* The certificate of 'segment'
-     In n (segment base len) ↔ base ≤ n ∧ n < base + len
-   -------------------------------------------------------------------------- *)
-Lemma plus_n_1 : ∀ n : nat, n + 1 = S n.
-Proof.
-  induction n as [| n' IHn'].
-  - trivial.
-  - simpl. now rewrite IHn'.
-Qed.
-
-Lemma lt_n_plus_n_Sm : ∀ n m : nat, n < n + S m.
-Proof.
-  induction m as [| m' IHm'].
-  - rewrite plus_n_1. constructor.
-  - rewrite <- plus_n_Sm. apply Nat.lt_trans with (n + S m');
-    [ assumption | constructor ].
-Qed.
-
-Lemma in_segment : ∀ base len n,
-  In n (segment base len) → base ≤ n ∧ n < base + len.
-Proof.
-  destruct len as [| len']; intros.
-  - contradiction.
-  - revert base H. induction len' as [| len'' IHlen'']; intros.
-    + inversion_clear H.
-      * rewrite H0. split; try constructor. rewrite plus_n_1. constructor.
-      * contradiction.
-    + inversion_clear H.
-      * rewrite H0. split; [ constructor | apply lt_n_plus_n_Sm ].
-      * rewrite <- plus_n_Sm.
-        pose (IH := IHlen'' (S base) H0). destruct IH. { split.
-        - inversion_clear H; try do 2 constructor.
-          assert (H3 : base ≤ m). { apply Nat.le_trans with (S base);
-            [ do 2 constructor | assumption ]. }
-          apply Nat.le_trans with m; try assumption. do 2 constructor.
-        - rewrite <- plus_n_Sm. simpl in H1. now rewrite <- plus_n_Sm in H1. }
-Qed.
-
-Lemma segment_in : ∀ base len n,
-  base ≤ n → n < base + len → In n (segment base len).
-Proof.
-  destruct len as [| len'].
-  - intros. exfalso. rewrite <- plus_n_O in H0.
-    pose (le_le_S_dec n base). destruct s as [H1 | H1].
-    + assert (n < n). { apply Nat.le_trans with base; try assumption. }
-      now apply Nat.lt_irrefl with n.
-    + assert (base < base). { apply Nat.le_trans with n; try assumption.
-      apply Nat.le_trans with (S n); [ do 2 constructor | assumption ]. }
-      now apply Nat.lt_irrefl with base.
-  - revert base. induction len' as [| len'' IHlen'']; intros;
-    destruct (lt_eq_lt_dec n base) as [Hle | Hgt];
-    try destruct Hle as [Hlt | Heq].
-    * exfalso. assert (H2 : n < n). { now apply Nat.le_trans with base. }
-      now apply Nat.lt_irrefl with n.
-    * rewrite Heq. now left.
-    * exfalso. rewrite plus_n_1 in H0.
-      assert (H2 : n ≤ base). { now apply le_S_n. }
-      assert (H3 : base < base). { now apply Nat.le_trans with n. }
-      now apply Nat.lt_irrefl with base.
-    * exfalso. assert (H3 : base < base). { apply Nat.le_trans with (S n);
-      [ now apply le_n_S | assumption ]. }
-      now apply Nat.lt_irrefl with base.
-    * left. now symmetry.
-    * right. apply IHlen''; try assumption.
-      simpl. now rewrite plus_n_Sm.
-Qed.
