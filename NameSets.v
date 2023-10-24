@@ -142,41 +142,24 @@ Module Names (M : NAME) <: NAME with Definition name := M.name.
     intros.
     destruct (eq_dec n m) as [Heq | HNeq].
     - now left.
-    - right. revert n m HNeq H. induction inject. simpl in H.
-    destruct ns as [lst H]. simpl.
-    induction lst as [| k lst' IHlst']; intros; simpl in H0.
-    - elim H0; intro; [now left | contradiction].
-<<<<<<< HEAD
-    - simpl in H0. destruct (lt_eq_lt_dec (M.id n) (M.id k)) as [Hle | HGt];
-      try destruct Hle as [Hlt | Heq].
-      + inversion_clear H0; [now left | now right].
-      + now right.
-      + inversion_clear H0.
-        * right. now left.
-        * simpl. right. { apply IHlst'.
-          - inversion_clear H; [constructor | assumption].
-          - destruct (lt_eq_lt_dec (M.id m) (M.id k)) as [Hle | Hgt];
-            try destruct Hle as [Hlt | Heq].
-            + exfalso. now apply Nat.lt_irrefl with (M.id k).
-          + 
-=======
-    - destruct (lt_eq_lt_dec (M.id n) (M.id k)) as [Hle | Hgt];
-      try destruct Hle as [Hlt | Heq]; simpl in H0 |-*.
-      + assumption.
-      + now right.
-      + right. apply IHlst'.
-        * inversion_clear H; [constructor | assumption].
-        * { elim H0; intro.
-          - rewrite H1. pose (post_inject.
+    - destruct ns as (lst, Hinc). simpl in H |-*. right.
+      induction lst.
+      + simpl in H. destruct H as [H | H]; contradiction.
+      + simpl in H. destruct (lt_eq_lt_dec (M.id n) (M.id a)) as [Hle | Hgt];
+        try destruct Hle as [Hlt | Heq].
+        * simpl in H |-*. now destruct H as [H | H].
+        * destruct H as [H | H]; [now left | now right].
+        * simpl in H. destruct H as [H | H];
+          [now left | right]; apply IHlst;
+          [ inversion_clear Hinc; [try now constructor | assumption]
+          | assumption].
+  Qed.
 
->>>>>>> 1ce5fa930dde8cde8f897bf8480a6a01c9c5ea4d
-  Definition declare (lst : list name) : NameSet.
-  Proof.
-    induction lst as [| n lst' ns'].
-      
-    - exact nothing.
-    - exact (inject n ns').
-  Defined.
+  Fixpoint declare (lst : list name) : NameSet :=
+    match lst with
+    | [] => nothing
+    | n :: lst' => inject n (declare lst')
+  end.
 
   Lemma post_declare : ∀ lst n, In n (declare lst) ↔ In n lst.
   Proof.
