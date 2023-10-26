@@ -29,13 +29,13 @@ Module Names (M : NAME) <: NAME with Definition name := M.name.
   Definition id_inj := M.id_inj.
   Definition id_surj := M.id_surj.
   Definition eq_dec := M.eq_dec.
-  
+
 
   Inductive increasing : list name → Prop :=
     | inc0 : increasing []
     | inc1 : ∀ n, increasing [n]
     | incS :
-        ∀ n m lst, 
+        ∀ n m lst,
           M.id n < M.id m → increasing (m :: lst) → increasing (n :: m :: lst).
 
   Definition inc_dec : ∀ lst : list name, {increasing lst} + {¬ increasing lst}.
@@ -66,7 +66,7 @@ Module Names (M : NAME) <: NAME with Definition name := M.name.
     ∀ (n : name) (ns : NameSet), {In n ns} + {¬ In n ns}.
   Proof.
     intros.
-    destruct ns as [lst H]. simpl. clear H.
+    destruct ns as (lst, H). simpl. clear H.
     induction lst as [| m lst' IHlst'].
     - right. intro. inversion_clear H.
     - destruct (M.eq_dec n m) as [Heq | Hneq];
@@ -93,7 +93,8 @@ Module Names (M : NAME) <: NAME with Definition name := M.name.
     match lst with
     | []        => [n]
     | m :: lst' => match (lt_eq_lt_dec (M.id n) (M.id m)) with
-        | inleft Hle => match Hle with
+        | inleft Hle => 
+            match Hle with
             | left _  => n :: m :: lst'
             | right _ => m :: lst'
             end
@@ -127,7 +128,7 @@ Module Names (M : NAME) <: NAME with Definition name := M.name.
   Lemma post_inject : ∀ n ns, In n (inject n ns).
   Proof.
     intros. revert n.
-    destruct ns as [lst H]. simpl.
+    destruct ns as (lst, H). simpl.
     induction lst as [| m lst' IHlst']; intro.
     - now constructor.
     - simpl. destruct (lt_eq_lt_dec (M.id n) (M.id m)) as [Hle | Hgt];
@@ -154,7 +155,7 @@ Module Names (M : NAME) <: NAME with Definition name := M.name.
           [ inversion_clear Hinc; [try now constructor | assumption]
           | assumption].
   Qed.
-  
+
   Lemma inject_inv : ∀ n m (ns : NameSet), In n ns → In n (inject m ns).
   Proof.
     intros. destruct ns as (lst, Hinc).
